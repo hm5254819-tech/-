@@ -13,59 +13,63 @@ jobs:
         with:
           channel: 'stable'
 
-      - run: flutter create --project-name inventory_manager --platforms=android .
+      - run: flutter create --project-name inventory_manager .
+
+      - name: Verify generated files
+        run: ls -la android/app/build.gradle android/build.gradle
 
       - name: Write google-services.json
-        run: |
-          cat > android/app/google-services.json << 'EOF'
-          {
-            "project_info": {
-              "project_number": "34208425796",
-              "project_id": "inventory-app-780a1",
-              "storage_bucket": "inventory-app-780a1.firebasestorage.app"
-            },
-            "client": [
-              {
-                "client_info": {
-                  "mobilesdk_app_id": "1:34208425796:android:fb08c810f24b3dbeadd911",
-                  "android_client_info": {
-                    "package_name": "com.example.inventory_manager"
-                  }
-                },
-                "oauth_client": [],
-                "api_key": [
-                  {
-                    "current_key": "AIzaSyAe4RhXFJ4Q6e6IcAhOkJk98luWr7ZkxCs"
-                  }
-                ],
-                "services": {
-                  "appinvite_service": {
-                    "other_platform_oauth_client": []
-                  }
-                }
-              }
-            ],
-            "configuration_version": "1"
-          }
-          EOF
+        run: cat > android/app/google-services.json << 'EOF'
+{
+  "project_info": {
+    "project_number": "34208425796",
+    "project_id": "inventory-app-780a1",
+    "storage_bucket": "inventory-app-780a1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:34208425796:android:fb08c810f24b3dbeadd911",
+        "android_client_info": {
+          "package_name": "com.example.inventory_manager"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAe4RhXFJ4Q6e6IcAhOkJk98luWr7ZkxCs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
+EOF
 
       - name: Patch Gradle for Firebase
         run: |
-          cat >> android/build.gradle << 'EOF'
+          # Add google-services classpath to root build.gradle
+          echo "" >> android/build.gradle
+          echo "buildscript {" >> android/build.gradle
+          echo "    dependencies {" >> android/build.gradle
+          echo "        classpath 'com.google.gms:google-services:4.3.15'" >> android/build.gradle
+          echo "    }" >> android/build.gradle
+          echo "}" >> android/build.gradle
 
-          buildscript {
-              dependencies {
-                  classpath 'com.google.gms:google-services:4.3.15'
-              }
-          }
-          EOF
+          # minSdk 21 - replace exact Flutter default
+          sed -i "s/minSdk = flutter.minSdkVersion/minSdk = 21/" android/app/build.gradle
 
-          sed -i 's/minSdk = .*/minSdk = 21/' android/app/build.gradle
-          sed -i '/minSdk = 21/a\        multiDexEnabled = true' android/app/build.gradle
-          cat >> android/app/build.gradle << 'EOF'
+          # multiDexEnabled right after minSdk line
+          sed -i "/minSdk = 21/a\        multiDexEnabled = true" android/app/build.gradle
 
-          apply plugin: 'com.google.gms.google-services'
-          EOF
+          # Apply Firebase plugin at end
+          echo "" >> android/app/build.gradle
+          echo "apply plugin: 'com.google.gms.google-services'" >> android/app/build.gradle
 
       - run: flutter pub get
       - run: flutter build apk --release
