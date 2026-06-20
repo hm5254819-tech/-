@@ -12,11 +12,46 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Create Base Project
+      - name: Create Fresh Flutter Android Project
         run: |
           flutter create --project-name inventory_manager --platforms=android .
 
-      - name: Overwrite settings.gradle cleanly
+      - name: Inject Firebase Config
+        run: |
+          mkdir -p android/app
+          cat << 'EOF' > android/app/google-services.json
+          {
+            "project_info": {
+              "project_number": "34208425796",
+              "project_id": "inventory-app-780a1",
+              "storage_bucket": "inventory-app-780a1.firebasestorage.app"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:34208425796:android:fb08c810f24b3dbeadd911",
+                  "android_client_info": {
+                    "package_name": "com.example.inventory_manager"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [
+                  {
+                    "current_key": "AIzaSyAe4RhXFJ4Q6e6IcAhOkJk98luWr7ZkxCs"
+                  }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": []
+                  }
+                }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          EOF
+
+      - name: Patch Settings Gradle with Repositories
         run: |
           cat << 'EOF' > android/settings.gradle
           pluginManagement {
@@ -31,6 +66,11 @@ jobs:
                   return flutterSdkPath
               }()
               includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
           }
           plugins {
               id "dev.flutter.flutter-plugin-loader" version "1.0.0"
@@ -41,7 +81,7 @@ jobs:
           include ":app"
           EOF
 
-      - name: Overwrite app build.gradle cleanly
+      - name: Patch App Build Gradle Safely
         run: |
           cat << 'EOF' > android/app/build.gradle
           plugins {
@@ -78,45 +118,6 @@ jobs:
                       signingConfig signingConfigs.debug
                   }
               }
-          }
-
-          dependencies {
-              implementation "apply.plugin: 'com.google.gms.google-services'"
-          }
-          EOF
-
-      - name: Inject Firebase Config
-        run: |
-          mkdir -p android/app
-          cat << 'EOF' > android/app/google-services.json
-          {
-            "project_info": {
-              "project_number": "34208425796",
-              "project_id": "inventory-app-780a1",
-              "storage_bucket": "inventory-app-780a1.firebasestorage.app"
-            },
-            "client": [
-              {
-                "client_info": {
-                  "mobilesdk_app_id": "1:34208425796:android:fb08c810f24b3dbeadd911",
-                  "android_client_info": {
-                    "package_name": "com.example.inventory_manager"
-                  }
-                },
-                "oauth_client": [],
-                "api_key": [
-                  {
-                    "current_key": "AIzaSyAe4RhXFJ4Q6e6IcAhOkJk98luWr7ZkxCs"
-                  }
-                ],
-                "services": {
-                  "appinvite_service": {
-                    "other_platform_oauth_client": []
-                  }
-                }
-              }
-            ],
-            "configuration_version": "1"
           }
           EOF
 
