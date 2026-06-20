@@ -1,0 +1,61 @@
+#!/bin/sh
+
+APP_NAME="Gradle"
+APP_BASE_NAME=$(basename "$0")
+
+# Resolve APP_HOME
+PRG="$0"
+while [ -h "$PRG" ] ; do
+    ls=$(ls -ld "$PRG")
+    link=$(expr "$ls" : '.*-> \(.*\)$')
+    if expr "$link" : '/.*' > /dev/null; then
+        PRG="$link"
+    else
+        PRG=$(dirname "$PRG")/"$link"
+    fi
+done
+SAVED="$(pwd)"
+cd "$(dirname "$PRG")/" >/dev/null
+APP_HOME=$(pwd -P)
+cd "$SAVED"
+
+CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
+
+# Download wrapper jar if missing
+if [ ! -f "$CLASSPATH" ] ; then
+    echo "Downloading Gradle wrapper jar..."
+    DIST_URL=$(grep "^distributionUrl" "$APP_HOME/gradle/wrapper/gradle-wrapper.properties" | sed 's/.*=//' | tr -d '[:space:]' | sed 's/\\:/:/g')
+    TMP_DIR="$APP_HOME/.gradle-dl"
+    mkdir -p "$TMP_DIR"
+    if command -v curl >/dev/null 2>&1 ; then
+        curl -sSL "$DIST_URL" -o "$TMP_DIR/gradle.zip"
+    elif command -v wget >/dev/null 2>&1 ; then
+        wget -q "$DIST_URL" -O "$TMP_DIR/gradle.zip"
+    else
+        echo "ERROR: curl or wget required to download Gradle wrapper."
+        exit 1
+    fi
+    unzip -q "$TMP_DIR/gradle.zip" -d "$TMP_DIR" 2>/dev/null
+    find "$TMP_DIR" -name "gradle-wrapper*.jar" -exec cp {} "$CLASSPATH" \; 2>/dev/null
+    rm -rf "$TMP_DIR"
+fi
+
+if [ ! -f "$CLASSPATH" ] ; then
+    echo "ERROR: Gradle wrapper jar not found at $CLASSPATH"
+    exit 1
+fi
+
+# Find Java
+if [ -n "$JAVA_HOME" ] && [ -x "$JAVA_HOME/bin/java" ] ; then
+    JAVACMD=$JAVA_HOME/bin/java
+else
+    JAVACMD=java
+fi
+
+exec "$JAVACMD" \
+    $JAVA_OPTS \
+    $GRADLE_OPTS \
+    -Dorg.gradle.appname="$APP_BASE_NAME" \
+    -classpath "$CLASSPATH" \
+    org.gradle.wrapper.GradleWrapperMain \
+    "$@"

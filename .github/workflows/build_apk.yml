@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
 
 jobs:
   build:
@@ -12,77 +12,6 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-
-      - run: flutter create --project-name inventory_manager --platforms=android .
-
-      - name: Write google-services.json
-        run: cat > android/app/google-services.json << 'EOF'
-{
-  "project_info": {
-    "project_number": "34208425796",
-    "project_id": "inventory-app-780a1",
-    "storage_bucket": "inventory-app-780a1.firebasestorage.app"
-  },
-  "client": [
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:34208425796:android:fb08c810f24b3dbeadd911",
-        "android_client_info": {
-          "package_name": "com.example.inventory_manager"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyAe4RhXFJ4Q6e6IcAhOkJk98luWr7ZkxCs"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    }
-  ],
-  "configuration_version": "1"
-}
-EOF
-
-      - name: Patch settings.gradle
-        run: cat > android/settings.gradle << 'EOF'
-pluginManagement {
-    def flutterSdkPath = {
-        def properties = new Properties()
-        def propertiesFile = new File(settingsDir, "local.properties")
-        if (propertiesFile.exists()) {
-            properties.load(new FileInputStream(propertiesFile))
-        }
-        def flutterSdkPath = properties.getProperty("flutter.sdk")
-        assert flutterSdkPath != null, "flutter.sdk not set in local.properties"
-        return flutterSdkPath
-    }()
-    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
-}
-plugins {
-    id "dev.flutter.flutter-plugin-loader" version "1.0.0"
-    id "com.android.application" version "8.2.2" apply false
-    id "org.jetbrains.kotlin.android" version "1.9.22" apply false
-    id "com.google.gms.google-services" version "4.3.15" apply false
-}
-include ":app"
-EOF
-
-      - name: Patch app build.gradle
-        run: |
-          # Add google-services plugin
-          sed -i '/id "dev.flutter.flutter-gradle-plugin"/a\    id "com.google.gms.google-services"' android/app/build.gradle
-          # Replace minSdk version with 21
-          sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 21/' android/app/build.gradle
-          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/' android/app/build.gradle
-          # Add multiDexEnabled after minSdk line
-          sed -i '/minSdk = 21/a\        multiDexEnabled true' android/app/build.gradle
-          sed -i '/minSdkVersion 21/a\        multiDexEnabled true' android/app/build.gradle
-
       - run: flutter pub get
       - run: flutter build apk --release
       - uses: actions/upload-artifact@v4
