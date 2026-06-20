@@ -12,9 +12,78 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Create Fresh Flutter Android Project
+      - name: Create Base Project
         run: |
           flutter create --project-name inventory_manager --platforms=android .
+
+      - name: Overwrite settings.gradle cleanly
+        run: |
+          cat << 'EOF' > android/settings.gradle
+          pluginManagement {
+              def flutterSdkPath = {
+                  def properties = new Properties()
+                  def propertiesFile = new File(settingsDir, "local.properties")
+                  if (propertiesFile.exists()) {
+                      properties.load(new FileInputStream(propertiesFile))
+                  }
+                  def flutterSdkPath = properties.getProperty("flutter.sdk")
+                  assert flutterSdkPath != null, "flutter.sdk not set in local.properties"
+                  return flutterSdkPath
+              }()
+              includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+          }
+          plugins {
+              id "dev.flutter.flutter-plugin-loader" version "1.0.0"
+              id "com.android.application" version "8.2.2" apply false
+              id "org.jetbrains.kotlin.android" version "1.9.22" apply false
+              id "com.google.gms.google-services" version "4.3.15" apply false
+          }
+          include ":app"
+          EOF
+
+      - name: Overwrite app build.gradle cleanly
+        run: |
+          cat << 'EOF' > android/app/build.gradle
+          plugins {
+              id "com.android.application"
+              id "org.jetbrains.kotlin.android"
+              id "dev.flutter.flutter-gradle-plugin"
+              id "com.google.gms.google-services"
+          }
+
+          android {
+              namespace "com.example.inventory_manager"
+              compileSdk 34
+
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_1_8
+                  targetCompatibility JavaVersion.VERSION_1_8
+              }
+
+              kotlinOptions {
+                  jvmTarget = '1.8'
+              }
+
+              defaultConfig {
+                  applicationId "com.example.inventory_manager"
+                  minSdkVersion 21
+                  targetSdkVersion 34
+                  versionCode 1
+                  versionName "1.0.0"
+                  multiDexEnabled true
+              }
+
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.debug
+                  }
+              }
+          }
+
+          dependencies {
+              implementation "apply.plugin: 'com.google.gms.google-services'"
+          }
+          EOF
 
       - name: Inject Firebase Config
         run: |
@@ -50,16 +119,6 @@ jobs:
             "configuration_version": "1"
           }
           EOF
-
-      - name: Add Google Services Plugin to Gradle
-        run: |
-          # Use a simple, non-breaking line addition for modern Plugins DSL
-          sed -i '/plugins {/a \    id "com.google.gms.google-services" version "4.3.15" apply false' android/settings.gradle
-          sed -i '/plugins {/a \    id "com.google.gms.google-services"' android/app/build.gradle
-          
-          # Force minSdkVersion 21 and multiDexEnabled
-          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
-          sed -i '/defaultConfig {/a \        multiDexEnabled true' android/app/build.gradle
 
       - name: Build Release APK
         run: |
