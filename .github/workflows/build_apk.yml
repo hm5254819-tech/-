@@ -1,70 +1,71 @@
 name: Build Android APK
-
 on:
   push:
     branches: [ main ]
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
 
-      - run: flutter create --project-name inventory_manager --platforms=android .
-
-      - name: Inject google-services.json
-        run: cat > android/app/google-services.json << 'EOF'
-{
-  "project_info": {
-    "project_number": "34208425796",
-    "project_id": "inventory-app-780a1",
-    "storage_bucket": "inventory-app-780a1.firebasestorage.app"
-  },
-  "client": [
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:34208425796:android:fb08c810f24b3dbeadd911",
-        "android_client_info": {
-          "package_name": "com.example.inventory_manager"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyAe4RhXFJ4Q6e6IcAhOkJk98luWr7ZkxCs"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    }
-  ],
-  "configuration_version": "1"
-}
-EOF
-
-      - name: Inject Firebase plugin into settings.gradle
+      - name: Create Fresh Flutter Android Project
         run: |
-          sed -i '/id "org.jetbrains.kotlin.android"/a\    id "com.google.gms.google-services" version "4.3.15" apply false' android/settings.gradle
+          flutter create --project-name inventory_manager --platforms=android .
 
-      - name: Inject Firebase plugin into app build.gradle
+      - name: Inject Firebase Config
         run: |
-          sed -i '/id "dev.flutter.flutter-gradle-plugin"/a\    id "com.google.gms.google-services"' android/app/build.gradle
+          mkdir -p android/app
+          cat << 'EOF' > android/app/google-services.json
+          {
+            "project_info": {
+              "project_number": "34208425796",
+              "project_id": "inventory-app-780a1",
+              "storage_bucket": "inventory-app-780a1.firebasestorage.app"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:34208425796:android:fb08c810f24b3dbeadd911",
+                  "android_client_info": {
+                    "package_name": "com.example.inventory_manager"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [
+                  {
+                    "current_key": "AIzaSyAe4RhXFJ4Q6e6IcAhOkJk98luWr7ZkxCs"
+                  }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": []
+                  }
+                }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          EOF
 
-      - name: Set minSdk and multiDexEnabled
+      - name: Add Google Services Plugin to Gradle
         run: |
-          sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 21/' android/app/build.gradle
-          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/' android/app/build.gradle
-          sed -i '/minSdk = 21/a\        multiDexEnabled true' android/app/build.gradle
-          sed -i '/minSdkVersion 21/a\        multiDexEnabled true' android/app/build.gradle
+          # Use a simple, non-breaking line addition for modern Plugins DSL
+          sed -i '/plugins {/a \    id "com.google.gms.google-services" version "4.3.15" apply false' android/settings.gradle
+          sed -i '/plugins {/a \    id "com.google.gms.google-services"' android/app/build.gradle
+          
+          # Force minSdkVersion 21 and multiDexEnabled
+          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
+          sed -i '/defaultConfig {/a \        multiDexEnabled true' android/app/build.gradle
 
-      - run: flutter pub get
-      - run: flutter build apk --release
+      - name: Build Release APK
+        run: |
+          flutter pub get
+          flutter build apk --release
+
       - uses: actions/upload-artifact@v4
         with:
           name: release-apk
