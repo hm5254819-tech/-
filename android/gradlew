@@ -30,52 +30,26 @@ MAX_FD=maximum
 
 warn () {
     echo "$*"
-}
+} >&2
 
 die () {
     echo
     echo "$*"
     echo
     exit 1
-}
+} >&2
 
 # OS specific support
 cygwin=false
+msys=false
 darwin=false
 nonstop=false
 case "$(uname)" in
-  CYGWIN* )
-    cygwin=true
-    ;;
-  Darwin* )
-    darwin=true
-    ;;
-  MINGW* )
-    msys=true
-    ;;
-  NONSTOP* )
-    nonstop=true
-    ;;
+  CYGWIN* ) cygwin=true ;;
+  Darwin* ) darwin=true ;;
+  MSYS* | MINGW* ) msys=true ;;
+  NONSTOP* ) nonstop=true ;;
 esac
-
-CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
-
-# Determine the Java command to use to start the JVM.
-if [ -n "$JAVA_HOME" ] ; then
-    if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
-        JAVACMD=$JAVA_HOME/jre/sh/java
-    else
-        JAVACMD=$JAVA_HOME/bin/java
-    fi
-    if [ ! -x "$JAVACMD" ] ; then
-        die "ERROR: JAVA_HOME is set to an invalid directory: $JAVA_HOME"
-    fi
-else
-    JAVACMD=java
-    if ! command -v java >/dev/null 2>&1 ; then
-        die "ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH."
-    fi
-fi
 
 # Resolve links
 PRG="$0"
@@ -88,41 +62,63 @@ while [ -h "$PRG" ] ; do
         PRG=$(dirname "$PRG")/"$link"
     fi
 done
-
 SAVED="$(pwd)"
 cd "$(dirname "$PRG")/" >/dev/null
 APP_HOME=$(pwd -P)
 cd "$SAVED"
 
-# Determine if wrapper jar is present; download if not
-if [ ! -f "$APP_HOME/gradle/wrapper/gradle-wrapper.jar" ] ; then
-    echo "Gradle wrapper jar not found, downloading..."
-    GRADLE_VERSION=$(grep distributionUrl "$APP_HOME/gradle/wrapper/gradle-wrapper.properties" | sed 's/.*gradle-\(.*\)-.*/\1/')
-    DOWNLOAD_URL="https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip"
-    TMP_DIR="$APP_HOME/.gradle-tmp"
+CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
 
-    mkdir -p "$TMP_DIR"
-    if command -v curl >/dev/null 2>&1 ; then
-        curl -sSL "$DOWNLOAD_URL" -o "$TMP_DIR/gradle.zip"
-    elif command -v wget >/dev/null 2>&1 ; then
-        wget -q "$DOWNLOAD_URL" -O "$TMP_DIR/gradle.zip"
-    else
-        die "ERROR: Neither curl nor wget is available to download the Gradle wrapper."
+# Download wrapper jar if missing
+if [ ! -f "$CLASSPATH" ] ; then
+    echo "Downloading Gradle wrapper jar..."
+    PROP_FILE="$APP_HOME/gradle/wrapper/gradle-wrapper.properties"
+    DIST_URL=$(grep "^distributionUrl" "$PROP_FILE" | sed 's/.*=//' | tr -d '[:space:]')
+    if [ -z "$DIST_URL" ] ; then
+        DIST_URL="https\://services.gradle.org/distributions/gradle-8.3-bin.zip"
     fi
-
-    unzip -q "$TMP_DIR/gradle.zip" -d "$TMP_DIR"
-    find "$TMP_DIR" -name "gradle-wrapper*.jar" -exec cp {} "$APP_HOME/gradle/wrapper/gradle-wrapper.jar" \;
-    rm -rf "$TMP_DIR"
-    echo "Gradle wrapper jar downloaded successfully."
+    # Replace https\: with https: (the properties file escapes the colon)
+    DIST_URL=$(echo "$DIST_URL" | sed 's/\\:/:/g')
+    TMP_ZIP="$APP_HOME/.gradle-download.zip"
+    TMP_DIR="$APP_HOME/.gradle-extract"
+    if command -v curl >/dev/null 2>&1 ; then
+        curl -sSL "$DIST_URL" -o "$TMP_ZIP"
+    elif command -v wget >/dev/null 2>&1 ; then
+        wget -q "$DIST_URL" -O "$TMP_ZIP"
+    else
+        die "ERROR: Neither curl nor wget is available."
+    fi
+    unzip -q "$TMP_ZIP" -d "$TMP_DIR" 2>/dev/null
+    find "$TMP_DIR" -name "gradle-wrapper*.jar" -exec cp {} "$CLASSPATH" \; 2>/dev/null
+    rm -rf "$TMP_ZIP" "$TMP_DIR"
+    if [ ! -f "$CLASSPATH" ] ; then
+        die "ERROR: Failed to download Gradle wrapper jar."
+    fi
+    echo "Gradle wrapper jar downloaded."
 fi
 
-CLASSPATH="$APP_HOME/gradle/wrapper/gradle-wrapper.jar"
+# Determine Java command
+if [ -n "$JAVA_HOME" ] ; then
+    if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
+        JAVACMD=$JAVA_HOME/jre/sh/java
+    else
+        JAVACMD=$JAVA_HOME/bin/java
+    fi
+    if [ ! -x "$JAVACMD" ] ; then
+        die "ERROR: JAVA_HOME is set to an invalid directory: $JAVA_HOME"
+    fi
+else
+    JAVACMD=java
+    if ! command -v java >/dev/null 2>&1 ; then
+        die "ERROR: JAVA_HOME is not set and no 'java' command could be found."
+    fi
+fi
 
-exec "$JAVACMD" \
-    $DEFAULT_JVM_OPTS \
-    $JAVA_OPTS \
-    $GRADLE_OPTS \
+# Collect all arguments for the java command
+set -- \
     "-Dorg.gradle.appname=$APP_BASE_NAME" \
     -classpath "$CLASSPATH" \
     org.gradle.wrapper.GradleWrapperMain \
     "$@"
+
+exec "$JAVACMD" "$@"
