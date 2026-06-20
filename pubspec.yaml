@@ -1,5 +1,5 @@
 name: inventory_manager
-description: Local inventory management app with Hive and Provider.
+description: Inventory management app with Firestore and Provider.
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -9,10 +9,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  hive_flutter: ^1.1.0
   provider: ^6.1.1
   uuid: ^4.2.1
   intl: ^0.19.0
+  firebase_core: ^2.25.4
+  cloud_firestore: ^4.15.5
 
 dev_dependencies:
   flutter_test:

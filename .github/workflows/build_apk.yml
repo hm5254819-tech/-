@@ -12,7 +12,63 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-      - run: flutter create --project-name inventory_manager --platforms=android .
+
+      - name: Generate Android scaffolding
+        run: flutter create --project-name inventory_manager --platforms=android .
+
+      - name: Patch Gradle for Firebase
+        run: |
+          # Add google-services classpath to root build.gradle
+          cat >> android/build.gradle << 'EOF'
+
+          buildscript {
+              dependencies {
+                  classpath 'com.google.gms:google-services:4.3.15'
+              }
+          }
+          EOF
+
+          # minSdk 21, multiDex, apply plugin in app/build.gradle
+          sed -i 's/minSdk = .*/minSdk = 21/' android/app/build.gradle
+          sed -i '/minSdk = 21/a\        multiDexEnabled = true' android/app/build.gradle
+          cat >> android/app/build.gradle << 'EOF'
+
+          apply plugin: 'com.google.gms.google-services'
+          EOF
+
+          # Create google-services.json placeholder
+          cat > android/app/google-services.json << 'EOF'
+          {
+            "project_info": {
+              "project_number": "YOUR_PROJECT_NUMBER",
+              "project_id": "YOUR_PROJECT_ID",
+              "storage_bucket": "YOUR_PROJECT_ID.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "YOUR_APP_ID",
+                  "android_client_info": {
+                    "package_name": "com.example.inventory_manager"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [
+                  {
+                    "current_key": "YOUR_API_KEY"
+                  }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": []
+                  }
+                }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          EOF
+
       - run: flutter pub get
       - run: flutter build apk --release
       - uses: actions/upload-artifact@v4

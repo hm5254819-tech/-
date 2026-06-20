@@ -1,6 +1,6 @@
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class Product extends HiveObject {
+class Product {
   final String id;
   String name;
   int quantity;
@@ -12,27 +12,21 @@ class Product extends HiveObject {
     this.quantity = 0,
     DateTime? lastUpdated,
   }) : lastUpdated = lastUpdated ?? DateTime.now();
-}
 
-class ProductAdapter extends TypeAdapter<Product> {
-  @override
-  final int typeId = 0;
-
-  @override
-  Product read(BinaryReader reader) {
-    return Product(
-      id: reader.readString(),
-      name: reader.readString(),
-      quantity: reader.readInt(),
-      lastUpdated: DateTime.fromMicrosecondsSinceEpoch(reader.readInt()),
-    );
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'quantity': quantity,
+      'lastUpdated': Timestamp.fromDate(lastUpdated),
+    };
   }
 
-  @override
-  void write(BinaryWriter writer, Product obj) {
-    writer.writeString(obj.id);
-    writer.writeString(obj.name);
-    writer.writeInt(obj.quantity);
-    writer.writeInt(obj.lastUpdated.microsecondsSinceEpoch);
+  factory Product.fromMap(String id, Map<String, dynamic> map) {
+    return Product(
+      id: id,
+      name: map['name'] ?? '',
+      quantity: (map['quantity'] ?? 0) as int,
+      lastUpdated: (map['lastUpdated'] as Timestamp).toDate(),
+    );
   }
 }
